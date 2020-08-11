@@ -24,7 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include	<stdio.h>
+//#include	<stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,9 +105,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  char	a = 0x41;
   while (1)
   {
-	printf("Hello World!\r\n");
+	//printf("Hello World!\r\n");
+	HAL_UART_Transmit(&huart3,&a,1,10);
 	HAL_Delay(1000);
     /* USER CODE END WHILE */
 
