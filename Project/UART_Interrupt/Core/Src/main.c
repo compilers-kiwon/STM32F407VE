@@ -24,12 +24,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include	"init.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define	BUF_SIZE	10
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -44,7 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint8_t	buf[BUF_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,7 +55,14 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if( huart->Instance == USART3 )
+	{
+		HAL_UART_Transmit(huart,buf,BUF_SIZE,10);
+		HAL_UART_Receive_IT(huart,buf,BUF_SIZE);
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -88,7 +95,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  my_init();
+  HAL_UART_Receive_IT(&huart3,buf,BUF_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
