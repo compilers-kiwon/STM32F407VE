@@ -38,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define	UART_RX_BUF_SIZE	10
+#define	UART_RX_BUF_SIZE	1
 #define	UART_TIMEOUT		10
 #define	MAX_CNT				100
 /* USER CODE END PD */
@@ -65,7 +65,7 @@ void SystemClock_Config(void);
 int		_write(int file,char* data,int size)
 {
 	HAL_UART_Transmit(&huart3,data,size,UART_TIMEOUT);
-
+	//HAL_Delay(1);
 	return	size;
 }
 
@@ -83,6 +83,50 @@ void	HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		printf("%d\n",cnt);
 
 		cnt = (cnt+1)%MAX_CNT;
+	}
+}
+
+void	Send_Data_to_UART(UART_HandleTypeDef *huart,int cnt,char int_c)
+{
+	char	buf[100],number[100];
+	int		buf_ptr,num_ptr;
+
+	buf_ptr = num_ptr = 0;
+
+	buf[buf_ptr++] = '[';
+	buf[buf_ptr++] = int_c;
+	buf[buf_ptr++] = ']';
+
+	if( cnt == 0 )
+	{
+		buf[buf_ptr++] = '0';
+	}
+	else
+	{
+		for(int i=cnt;i>0;i/=10)
+		{
+			number[num_ptr++] = (char)((i%10)+(int)'0');
+		}
+
+		for(int i=num_ptr-1;i>=0;i--)
+		{
+			buf[buf_ptr++] = number[i];
+		}
+	}
+	buf[buf_ptr++] = '\n';
+
+	_write(0,buf,buf_ptr);
+}
+
+void	HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if( huart->Instance == USART3 )
+	{
+		static int	cnt = 0;
+
+		HAL_UART_Receive_IT(&huart3,uart_rx_buf,UART_RX_BUF_SIZE);
+		//printf("[%c]\n",uart_rx_buf[0]);
+		Send_Data_to_UART(huart,++cnt,uart_rx_buf[0]);
 	}
 }
 /* USER CODE END 0 */
