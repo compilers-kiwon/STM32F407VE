@@ -8,7 +8,7 @@
 #include	"gpio.h"
 #include	"init.h"
 
-void	LED_init(void)
+void	LED_Init(void)
 {
 	// Turn off left LED
 	HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_SET);

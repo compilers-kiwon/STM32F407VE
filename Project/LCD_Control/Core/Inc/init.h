@@ -8,6 +8,6 @@
 #ifndef INC_INIT_H_
 #define INC_INIT_H_
 
-extern	void	LED_init(void);
+void	LED_Init(void);
 
 #endif /* INC_INIT_H_ */

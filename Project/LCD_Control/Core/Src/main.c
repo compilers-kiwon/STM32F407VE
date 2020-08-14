@@ -89,14 +89,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  LED_init();
-  CLCD_init();
+  LED_Init();
+  CLCD_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  LCD_wr_string(LINE1,"a");
-  LCD_wr_string(LINE2,"b");
+
   while (1)
   {
     /* USER CODE END WHILE */

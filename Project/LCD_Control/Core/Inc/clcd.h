@@ -8,28 +8,41 @@
 #ifndef INC_CLCD_H_
 #define INC_CLCD_H_
 
-#include	"gpio.h"
+#include	"stm32f4xx_hal.h"
 
-#define LINE1	0x80
-#define LINE2	0xC0
+/*/////   PIN CONNECTION   /////*/
+/*		CLCD_RS		PE0			*/
+/*		CLCD_RW 	PE1			*/
+/*		CLCD_EN 	PE2			*/
+/*		CLCD_D4 	PE4			*/
+/*		CLCD_D5 	PE5			*/
+/*		CLCD_D6 	PE6			*/
+/*		CLCD_D7 	PE7			*/
+////////////////////////////////*/
 
-#define RS_1		HAL_GPIO_WritePin(GPIOE,GPIO_PIN_0,GPIO_PIN_SET)
-#define RS_0		HAL_GPIO_WritePin(GPIOE,GPIO_PIN_0,GPIO_PIN_RESET)
-#define RW_1		HAL_GPIO_WritePin(GPIOE,GPIO_PIN_1,GPIO_PIN_SET)
-#define RW_0		HAL_GPIO_WritePin(GPIOE,GPIO_PIN_1,GPIO_PIN_RESET)
-#define E_1			HAL_GPIO_WritePin(GPIOE,GPIO_PIN_2,GPIO_PIN_SET)
-#define E_0			HAL_GPIO_WritePin(GPIOE,GPIO_PIN_2,GPIO_PIN_RESET)
+#define GPIO_RS GPIOE
+#define GPIO_RW GPIOE
+#define GPIO_EN GPIOE
+#define GPIO_D4	GPIOE
+#define GPIO_D5	GPIOE
+#define GPIO_D6	GPIOE
+#define GPIO_D7	GPIOE
 
-#define RIGHT	0x1C	//0001 01_ _ cursor(S/C=0) 를 오른쪽(R/L=1)으로 쉬프트.
-#define LEFT	0x18	//0001 00_ _ cursor(S/C=0) 를 왼쪽(R/L=0)으로 쉬프트.
-#define CLEAR	0x02	//화면 지우기
-#define FUNCTION 0x28
-#define ENTRY	0x06
-#define DISPLAY	0x0C
+#define GPIO_PIN_RS	GPIO_PIN_0
+#define GPIO_PIN_RW	GPIO_PIN_1
+#define GPIO_PIN_EN	GPIO_PIN_2
+#define GPIO_PIN_D4	GPIO_PIN_4
+#define GPIO_PIN_D5	GPIO_PIN_5
+#define GPIO_PIN_D6	GPIO_PIN_6
+#define GPIO_PIN_D7	GPIO_PIN_7
 
-extern void LCD_cmd_write(char cmd);
-extern void LCD_data_write(char *data);
-extern void LCD_wr_string(char d_line, char *lcd_str);
-extern void CLCD_init(void);
+void CLCD_GPIO_Init(void);
+void CLCD_Write_Instruction(unsigned char b);
+void CLCD_Write_Display(unsigned char b);
+void CLCD_Gotoxy(unsigned char x, unsigned char y);
+void CLCD_Puts(unsigned char x, unsigned char y, unsigned char *str);
+void CLCD_Init(void);
+void CLCD_Clear(void);
+//static void Delay(__IO uint32_t nCount);
 
 #endif /* INC_CLCD_H_ */

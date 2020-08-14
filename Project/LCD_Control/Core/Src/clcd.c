@@ -7,90 +7,170 @@
 
 #include	"clcd.h"
 
-void LCD_cmd_write(char cmd)
+void CLCD_GPIO_Init(void)
 {
-  HAL_Delay(1);
+	GPIO_InitTypeDef GPIO_InitStruct;
 
-  //PORTD=(cmd & 0xF0);		//Ã³À½ 8bit µ¥ÀÌÅÍ Áß ¾Õ 4°³ ¸ÕÀú º¸³¿
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_7,(cmd&0x80)>>7);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_6,(cmd&0x40)>>6);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_5,(cmd&0x20)>>5);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_4,(cmd&0x10)>>4);
-  RS_0;
-  RW_0;
+	/* GPIOE Periph clock enable */
+	__HAL_RCC_GPIOE_CLK_ENABLE();
 
-  HAL_Delay(1);
-  E_1;
-  HAL_Delay(1);
-  E_0;
+	/* Configure RS, RW, EN, D4, D5, D6, D7 in output pushpull mode */
+	GPIO_InitStruct.Pin = GPIO_PIN_RS;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIO_RS, &GPIO_InitStruct);
 
-  //PORTD=((cmd<<4) & 0xF0);		// 4°³ ¾ÕÀ¸·Î shiftÇÏ°í ³ª¸ÓÁö 4°³ º¸³¿
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_7,(cmd&0x08)>>3);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_6,(cmd&0x04)>>2);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_5,(cmd&0x02)>>1);
-  HAL_GPIO_WritePin(GPIOE,GPIO_PIN_4,(cmd&0x01)>>0);
-  RS_0;
-  RW_0;
+	GPIO_InitStruct.Pin = GPIO_PIN_RW;
+	HAL_GPIO_Init(GPIO_RW, &GPIO_InitStruct);
 
-  HAL_Delay(1);
-  E_1;
-  HAL_Delay(1);
-  E_0;
+	GPIO_InitStruct.Pin = GPIO_PIN_EN;
+	HAL_GPIO_Init(GPIO_EN, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D4;
+	HAL_GPIO_Init(GPIO_D4, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D5;
+	HAL_GPIO_Init(GPIO_D5, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D6;
+	HAL_GPIO_Init(GPIO_D6, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D7;
+	HAL_GPIO_Init(GPIO_D7, &GPIO_InitStruct);
 }
 
-void LCD_data_write(char *data)
+void CLCD_Write_Instruction(unsigned char b)
 {
-	HAL_Delay(1);
+	//ìƒìœ„ 4ë¹„íŠ¸
+	//GPIO_D7->ODR = (b & 0x80) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
+	//GPIO_D6->ODR = (b & 0x40) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
+	//GPIO_D5->ODR = (b & 0x20) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
+	//GPIO_D4->ODR = (b & 0x10) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
+	//GPIO_RS->ODR = GPIO_RS->ODR & ~GPIO_PIN_RS; //RSë¥¼ Low
+	//GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RWë¥¼ Low
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+	//GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //ENë¥¼ High
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
-	//PORTD=(*data & 0xF0);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_7,(*data&0x80)>>7);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_6,(*data&0x40)>>6);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_5,(*data&0x20)>>5);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_4,(*data&0x10)>>4);
-	RS_1;
-	RW_0;
-	HAL_Delay(1);
-	E_1;
-	HAL_Delay(1);
-	E_0;
+	//í•˜ìœ„ 4ë¹„íŠ¸
+	//GPIO_D7->ODR = (b & 0x08) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
+	//GPIO_D6->ODR = (b & 0x04) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
+	//GPIO_D5->ODR = (b & 0x02) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
+	//GPIO_D4->ODR = (b & 0x01) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+	//GPIO_RS->ODR = GPIO_RS->ODR & ~GPIO_PIN_RS; //RSë¥¼ Low
+	//GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RWë¥¼ Low
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+	//GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //ENë¥¼ High
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
-	//PORTD=((*data<<4) & 0xF0);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_7,(*data&0x08)>>3);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_6,(*data&0x04)>>2);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_5,(*data&0x02)>>1);
-	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_4,(*data&0x01)>>0);
-	RS_1;
-	RW_0;
 	HAL_Delay(1);
-	E_1;
-	HAL_Delay(1);
-	E_0;
 }
 
-void LCD_wr_string(char d_line, char *lcd_str)
+void CLCD_Write_Display(unsigned char b)
 {
-	LCD_cmd_write(d_line); //¹®ÀÚ¿­À» Ç¥½ÃÇÏ±â À§ÇÑ ¶óÀÎ ¼³Á¤
-	while(*lcd_str != '\0')
+	//ìƒìœ„ 4ë¹„íŠ¸
+	//GPIO_D7->ODR = (b & 0x80) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
+	//GPIO_D6->ODR = (b & 0x40) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
+	//GPIO_D5->ODR = (b & 0x20) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
+	//GPIO_D4->ODR = (b & 0x10) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
+	//GPIO_RS->ODR = GPIO_RS->ODR | GPIO_PIN_RS; //RSë¥¼ High
+	//GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RWë¥¼ Low
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+	//GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //ENë¥¼ High
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	//í•˜ìœ„ 4ë¹„íŠ¸
+	//GPIO_D7->ODR = (b & 0x08) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
+	//GPIO_D6->ODR = (b & 0x04) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
+	//GPIO_D5->ODR = (b & 0x02) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
+	//GPIO_D4->ODR = (b & 0x01) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+	//GPIO_RS->ODR = GPIO_RS->ODR | GPIO_PIN_RS; //RSë¥¼ High
+	//GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RWë¥¼ Low
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+	//GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //ENë¥¼ High
+	//GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //ENë¥¼ Low
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_Delay(1);
+}
+
+
+void CLCD_Gotoxy(unsigned char x, unsigned char y)
+{
+	// 16 * 2 Character LCD
+	switch(y)
 	{
-		LCD_data_write(lcd_str);//ÇÑ°³ÀÇ ¹®ÀÚ¾¿ LCD¿¡ Ç¥½ÃÇÑ´Ù.
-		lcd_str++;
+		case 0 : CLCD_Write_Instruction(0x80 + x); break;
+		case 1 : CLCD_Write_Instruction(0xC0 + x); break;
+		//case 2 : instruction_out(0x90+x); break;
+		//case 3 : instruction_out(0xd0+x); break;
 	}
 }
 
-void CLCD_init(void)
+void CLCD_Puts(unsigned char x, unsigned char y, unsigned char *str)
 {
-  HAL_Delay(20);        //15msec ÀÌ»ó ½Ã°£Áö¿¬
-  LCD_cmd_write(0x30);	//±â´É¼Â(µ¥ÀÌÅÍ¹ö½º 8ºñÆ®, ¶óÀÎ¼ö:2ÁÙ), FUNCTION
+	unsigned int i=0;
 
-  HAL_Delay(5);         //4.1msec ÀÌ»ó ½Ã°£Áö¿¬, »ý·«°¡´É
-  LCD_cmd_write(0x30);	//±â´É¼Â, »ý·« °¡´É, FUNCTION
-  HAL_Delay(1);       //100usec ÀÌ»ó ½Ã°£Áö¿¬, »ý·«°¡´É
-  LCD_cmd_write(0x30);	//±â´É¼Â, »ý·« °¡´É, FUNCTION
-  LCD_cmd_write(FUNCTION);  //
-  LCD_cmd_write(DISPLAY);  //Ç¥½Ã On
+	CLCD_Gotoxy(x,y);
+	do
+	{
+		CLCD_Write_Display(str[i]);
+	}
+	while(str[++i]!='\0');
+}
 
-  HAL_Delay(1);	//wait for 40us
-  LCD_cmd_write(CLEAR);  //È­¸é Áö¿ì±â
-  HAL_Delay(2); //wait for 1.53 ms
-  LCD_cmd_write(ENTRY);  //¿£Æ®¸®¸ðµå¼Â
+void CLCD_Init(void)
+{
+	HAL_Delay(100);
+	CLCD_Write_Instruction(0x28);
+	HAL_Delay(10);
+	CLCD_Write_Instruction(0x28);
+	HAL_Delay(10);
+	CLCD_Write_Instruction(0x0C);
+	CLCD_Write_Instruction(0x06);
+	CLCD_Write_Instruction(0x02);
+	CLCD_Write_Instruction(0x01);
+	CLCD_Write_Instruction(0x01);
+}
+
+void CLCD_Clear(void)
+{
+	CLCD_Write_Instruction(0x01);
+	HAL_Delay(10);
 }
