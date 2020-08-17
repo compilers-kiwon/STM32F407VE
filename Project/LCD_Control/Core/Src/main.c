@@ -91,6 +91,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   LED_Init();
   CLCD_Init();
+  CLCD_Puts(0,0,"Hello World!");
+  CLCD_Puts(0,1,"Kiwon Kwon!!");
   /* USER CODE END 2 */
 
   /* Infinite loop */
