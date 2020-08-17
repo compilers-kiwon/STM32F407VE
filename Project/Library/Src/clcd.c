@@ -1,117 +1,157 @@
-#include "clcd.h"
-#include "board.h"
+/*
+ * clcd.c
+ *
+ *  Created on: 2020. 8. 13.
+ *      Author: Kiwon
+ */
 
+#include	"clcd.h"
 
-//LCD Busy flag check 함수
-char LCD_BusyCheck(U8 temp)
+void CLCD_GPIO_Init(void)
 {
-	if(temp & 0x80) return 1;
-	else 			return 0;
+	GPIO_InitTypeDef GPIO_InitStruct;
+
+	/* GPIOE Periph clock enable */
+	__HAL_RCC_GPIOE_CLK_ENABLE();
+
+	/* Configure RS, RW, EN, D4, D5, D6, D7 in output pushpull mode */
+	GPIO_InitStruct.Pin = GPIO_PIN_RS;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIO_RS, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_RW;
+	HAL_GPIO_Init(GPIO_RW, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_EN;
+	HAL_GPIO_Init(GPIO_EN, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D4;
+	HAL_GPIO_Init(GPIO_D4, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D5;
+	HAL_GPIO_Init(GPIO_D5, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D6;
+	HAL_GPIO_Init(GPIO_D6, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = GPIO_PIN_D7;
+	HAL_GPIO_Init(GPIO_D7, &GPIO_InitStruct);
 }
 
-//LCD에 명령을 쓰기 위한 함수
-void LCD_cmd_write(char cmd)
+void CLCD_Write_Instruction(unsigned char b)
 {
-  /*PORTG = CMD_WRITE;  //PORTG에 RS, E, RW가 연결되어 있다.
-  PORTC = cmd; //PORTB에 데이터버스가 연결되어 있다.
-  PORTG = PORTG^LCD_EN;//E 신호를 H->L로 하기 위해
-  _delay_ms(2); //LCD 내부 동작시간*/
-  _delay_ms(1);
+	// send MSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
 
-  PORTD=(cmd & 0xF0);		//처음 8bit 데이터 중 앞 4개 먼저 보냄
-  RS_0;
-  RW_0;
- 
-  _delay_us(1);
-  E_1;
-  _delay_us(1);
-  E_0;
+	// notice an instruction to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
-  PORTD=((cmd<<4) & 0xF0);		// 4개 앞으로 shift하고 나머지 4개 보냄
-  RS_0;
-  RW_0;
- 
-  _delay_us(1);
-  E_1;
-  _delay_us(1);
-  E_0;
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	// send LSB 4 bits to CLCD
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+
+	// notice an instruction to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_Delay(1);
 }
 
-//LCD에 데이터를 쓰기 위한 함수
-void LCD_data_write(char *data)
+void CLCD_Write_Display(unsigned char b)
 {
-  /*PORTG = DATA_WRITE;  //PORTE에 RS, E, RW가 연결되어 있다.
-  PORTC = *data; //PORTC에 데이터버스가 연결되어 있다.
-  PORTG = PORTG^LCD_EN;//E 신호를 H->L로 하기 위해
-  _delay_ms(2); //LCD 내부 동작시간*/
-	_delay_ms(1);
+	// send MSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
 
-	PORTD=(*data & 0xF0);
-	RS_1;
-	RW_0;
-	_delay_us(1);
-	E_1;
-	_delay_us(1);
-	E_0;
+	// notice the data to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
-	PORTD=((*data<<4) & 0xF0);
-	RS_1;
-	RW_0;
-	_delay_us(1);
-	E_1;
-	_delay_us(1);
-	E_0;
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	// send LSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+
+	// notice the data to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_Delay(1);
 }
 
-// LCD에 문자열을 표시하기 위한 함수
-void LCD_wr_string(char d_line, char *lcd_str)
+
+void CLCD_Gotoxy(unsigned char col, unsigned char row)
 {
-	LCD_cmd_write(d_line); //문자열을 표시하기 위한 라인 설정
-	while(*lcd_str != '\0')
+	// the first line indicator : 0x80
+	// the second line indicator : 0xC0
+	// column is just offset from a line indicator
+	switch(row)
 	{
-		LCD_data_write(lcd_str);//한개의 문자씩 LCD에 표시한다.
-		lcd_str++;
+		case 0 :
+			CLCD_Write_Instruction(0x80+col);
+			break;
+		case 1 :
+			CLCD_Write_Instruction(0xC0+col);
+			break;
+		default:
+			// do nothing
+			break;
 	}
 }
-/* CLCD로 printf 함수 사용하기. */
-void LCD_printf(char d_line, char * msg,...)
-{
-  volatile	U8 LCDStr[30];	//unsigned char 8-bit.
-  
-  LCD_cmd_write(d_line); //문자열을 표시하기 위한 라인 설정
-  
-  /* vsprintf 쓰기 위한 필수. va_list va_start va_end. */
-  va_list ap;
-  va_start(ap, msg);
-  vsprintf((void*)&LCDStr[0], msg,ap);
-  va_end(ap);
 
-  /* vsprintf는 LCDStr[i]를 하나씩 보내주고
-   밑에 있는 LCD_String()은 LCDStr[]을 받아서 LCD로 뿌려준다.*/
-  LCD_wr_string(d_line,(void *)&LCDStr[0]);
+void CLCD_Puts(unsigned char col, unsigned char row, unsigned char *str)
+{
+	CLCD_Gotoxy(col,row);
+
+	for(uint32_t i=0;str[i]!='\0';i++)
+	{
+		CLCD_Write_Display(str[i]);
+	}
 }
 
-// ATmega128의 포트 초기화
-// LCD 초기화, 초기화 강좌의 순서도 참조
-void CLCD_init(void)
+void CLCD_Init(void)
 {
-	cli();
+	HAL_Delay(100);
+	CLCD_Write_Instruction(0x28);
+	HAL_Delay(10);
+	CLCD_Write_Instruction(0x28);
+	HAL_Delay(10);
+	CLCD_Write_Instruction(0x0C);
+	CLCD_Write_Instruction(0x06);
+	CLCD_Write_Instruction(0x02);
+	CLCD_Write_Instruction(0x01);
+	CLCD_Write_Instruction(0x01);
+}
 
-  _delay_ms(10);        //15msec 이상 시간지연
-  	LCD_cmd_write(0x30);	//기능셋(데이터버스 8비트, 라인수:2줄), FUNCTION
-
-  _delay_ms(2);         //4.1msec 이상 시간지연, 생략가능
-  	LCD_cmd_write(0x30);	//기능셋, 생략 가능, FUNCTION
-  _delay_us(100);       //100usec 이상 시간지연, 생략가능
-  	LCD_cmd_write(0x30);	//기능셋, 생략 가능, FUNCTION
-  	LCD_cmd_write(FUNCTION);  //
- 	LCD_cmd_write(DISPLAY);  //표시 On
-
- _delay_us(40);	//wait for 40us
-  LCD_cmd_write(CLEAR);  //화면 지우기
- _delay_us(1530); //wait for 1.53 ms
-  LCD_cmd_write(ENTRY);  //엔트리모드셋
-  
-
-  sei();
+void CLCD_Clear(void)
+{
+	CLCD_Write_Instruction(0x01);
+	HAL_Delay(10);
 }
