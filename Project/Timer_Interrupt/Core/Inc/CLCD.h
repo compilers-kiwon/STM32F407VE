@@ -1,7 +1,14 @@
-#ifndef _TEXTLCD_H
-#define _TEXTLCD_H
+/*
+ * clcd.h
+ *
+ *  Created on: 2020. 8. 13.
+ *      Author: Kiwon
+ */
 
-#include "stm32f4xx_hal.h"
+#ifndef INC_CLCD_H_
+#define INC_CLCD_H_
+
+#include	"stm32f4xx_hal.h"
 
 /*/////   PIN CONNECTION   /////*/
 /*		CLCD_RS		PE0			*/
@@ -29,7 +36,6 @@
 #define GPIO_PIN_D6	GPIO_PIN_6
 #define GPIO_PIN_D7	GPIO_PIN_7
 
-
 void CLCD_GPIO_Init(void);
 void CLCD_Write_Instruction(unsigned char b);
 void CLCD_Write_Display(unsigned char b);
@@ -37,7 +43,6 @@ void CLCD_Gotoxy(unsigned char x, unsigned char y);
 void CLCD_Puts(unsigned char x, unsigned char y, unsigned char *str);
 void CLCD_Init(void);
 void CLCD_Clear(void);
-static void Delay(__IO uint32_t nCount);
+//static void Delay(__IO uint32_t nCount);
 
-
-#endif
+#endif /* INC_CLCD_H_ */

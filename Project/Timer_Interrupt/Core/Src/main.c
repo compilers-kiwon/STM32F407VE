@@ -29,6 +29,7 @@
 #include	"7SEG.h"
 #include	"CLCD.h"
 #include	"init.h"
+#include	"util.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +42,8 @@
 #define	UART_RX_BUF_SIZE	1
 #define	UART_TIMEOUT		10
 #define	MAX_CNT				100
+
+#define	NUMBER_LEN	3
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -65,7 +68,7 @@ void SystemClock_Config(void);
 int		_write(int file,char* data,int size)
 {
 	HAL_UART_Transmit(&huart3,data,size,UART_TIMEOUT);
-	//HAL_Delay(1);
+
 	return	size;
 }
 
@@ -75,12 +78,17 @@ void	HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if(htim->Instance == TIM7)
 	{
+		char	buf[NUMBER_LEN+2];
+
 		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 
 		_7SEG_SetNumber(DGT1, cnt/10, OFF);
 		_7SEG_SetNumber(DGT2, cnt%10, ON);
 
-		printf("%d\n",cnt);
+		int2str(cnt,buf,NUMBER_LEN);
+
+		buf[NUMBER_LEN] = '\n';
+		_write(0,buf,NUMBER_LEN+1);
 
 		cnt = (cnt+1)%MAX_CNT;
 	}
@@ -88,44 +96,25 @@ void	HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void	Send_Data_to_UART(UART_HandleTypeDef *huart,int cnt,char int_c)
 {
-	char	buf[100],number[100];
-	int		buf_ptr,num_ptr;
+	char	buf[NUMBER_LEN+4];
 
-	buf_ptr = num_ptr = 0;
+	buf[0] = '[';
+	buf[1] = int_c;
+	buf[2] = ']';
 
-	buf[buf_ptr++] = '[';
-	buf[buf_ptr++] = int_c;
-	buf[buf_ptr++] = ']';
+	int2str(cnt,&buf[3],NUMBER_LEN);
+	buf[NUMBER_LEN+3] = '\n';
 
-	if( cnt == 0 )
-	{
-		buf[buf_ptr++] = '0';
-	}
-	else
-	{
-		for(int i=cnt;i>0;i/=10)
-		{
-			number[num_ptr++] = (char)((i%10)+(int)'0');
-		}
-
-		for(int i=num_ptr-1;i>=0;i--)
-		{
-			buf[buf_ptr++] = number[i];
-		}
-	}
-	buf[buf_ptr++] = '\n';
-
-	_write(0,buf,buf_ptr);
+	_write(0,buf,NUMBER_LEN+4);
 }
 
 void	HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	static int	cnt = 0;
+
 	if( huart->Instance == USART3 )
 	{
-		static int	cnt = 0;
-
 		HAL_UART_Receive_IT(&huart3,uart_rx_buf,UART_RX_BUF_SIZE);
-		//printf("[%c]\n",uart_rx_buf[0]);
 		Send_Data_to_UART(huart,++cnt,uart_rx_buf[0]);
 	}
 }
@@ -163,6 +152,7 @@ int main(void)
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   LED_Init();
+  CLCD_Init();
   _7SEG_GPIO_Init();
 
   HAL_UART_Receive_IT(&huart3,uart_rx_buf,UART_RX_BUF_SIZE);
@@ -173,6 +163,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	static int	t = 0;
+	char		buf[100];
+
+	sprintf(buf,"Hello World %03d!!",t++);
+
+	CLCD_Clear();
+	CLCD_Puts(0,0,buf);
+
+	HAL_Delay(1000);
 	/* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

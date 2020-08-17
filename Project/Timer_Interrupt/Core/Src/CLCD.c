@@ -1,4 +1,11 @@
-#include "CLCD.h"
+/*
+ * clcd.c
+ *
+ *  Created on: 2020. 8. 13.
+ *      Author: Kiwon
+ */
+
+#include	"clcd.h"
 
 void CLCD_GPIO_Init(void)
 {
@@ -6,7 +13,7 @@ void CLCD_GPIO_Init(void)
 
 	/* GPIOE Periph clock enable */
 	__HAL_RCC_GPIOE_CLK_ENABLE();
-	
+
 	/* Configure RS, RW, EN, D4, D5, D6, D7 in output pushpull mode */
 	GPIO_InitStruct.Pin = GPIO_PIN_RS;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -35,89 +42,98 @@ void CLCD_GPIO_Init(void)
 
 void CLCD_Write_Instruction(unsigned char b)
 {
-	//상위 4비트
-	GPIO_D7->ODR = (b & 0x80) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
-	GPIO_D6->ODR = (b & 0x40) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
-	GPIO_D5->ODR = (b & 0x20) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
-	GPIO_D4->ODR = (b & 0x10) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
-	
-	GPIO_RS->ODR = GPIO_RS->ODR & ~GPIO_PIN_RS; //RS를 Low
-	GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RW를 Low
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
-	GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //EN를 High
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
-	//하위 4비트
-	GPIO_D7->ODR = (b & 0x08) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
-	GPIO_D6->ODR = (b & 0x04) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
-	GPIO_D5->ODR = (b & 0x02) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
-	GPIO_D4->ODR = (b & 0x01) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
+	// send MSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
 
-	GPIO_RS->ODR = GPIO_RS->ODR & ~GPIO_PIN_RS; //RS를 Low
-	GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RW를 Low
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
+	// notice an instruction to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
-	GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //EN를 High
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	// send LSB 4 bits to CLCD
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+
+	// notice an instruction to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
 
 	HAL_Delay(1);
 }
 
 void CLCD_Write_Display(unsigned char b)
 {
-	//상위 4비트
-	GPIO_D7->ODR = (b & 0x80) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
-	GPIO_D6->ODR = (b & 0x40) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
-	GPIO_D5->ODR = (b & 0x20) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
-	GPIO_D4->ODR = (b & 0x10) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
-	
-	GPIO_RS->ODR = GPIO_RS->ODR | GPIO_PIN_RS; //RS를 High
-	GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RW를 Low
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
-	GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //EN를 High
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
-	//하위 4비트
-	GPIO_D7->ODR = (b & 0x08) ? GPIO_D7->ODR | GPIO_PIN_D7 : GPIO_D7->ODR & ~GPIO_PIN_D7; //D7
-	GPIO_D6->ODR = (b & 0x04) ? GPIO_D6->ODR | GPIO_PIN_D6 : GPIO_D6->ODR & ~GPIO_PIN_D6; //D6
-	GPIO_D5->ODR = (b & 0x02) ? GPIO_D5->ODR | GPIO_PIN_D5 : GPIO_D5->ODR & ~GPIO_PIN_D5; //D5
-	GPIO_D4->ODR = (b & 0x01) ? GPIO_D4->ODR | GPIO_PIN_D4 : GPIO_D4->ODR & ~GPIO_PIN_D4; //D4
-	
-	GPIO_RS->ODR = GPIO_RS->ODR | GPIO_PIN_RS; //RS를 High
-	GPIO_RW->ODR = GPIO_RW->ODR & ~GPIO_PIN_RW; //RW를 Low
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
-	GPIO_EN->ODR = GPIO_EN->ODR | GPIO_PIN_EN; //EN를 High
-	GPIO_EN->ODR = GPIO_EN->ODR & ~GPIO_PIN_EN; //EN를 Low
-	
+	// send MSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x80)>>7);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x40)>>6);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x20)>>5);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x10)>>4);
+
+	// notice the data to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	// send LSB 4 bits to CLDC
+	HAL_GPIO_WritePin(GPIO_D7,GPIO_PIN_D7,(b&0x08)>>3);
+	HAL_GPIO_WritePin(GPIO_D6,GPIO_PIN_D6,(b&0x04)>>2);
+	HAL_GPIO_WritePin(GPIO_D5,GPIO_PIN_D5,(b&0x02)>>1);
+	HAL_GPIO_WritePin(GPIO_D4,GPIO_PIN_D4,(b&0x01)>>0);
+
+	// notice the data to CLCD
+	HAL_GPIO_WritePin(GPIO_RS,GPIO_PIN_RS,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_RW,GPIO_PIN_RW,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_EN,GPIO_PIN_EN,GPIO_PIN_RESET);
+
 	HAL_Delay(1);
 }
 
 
-void CLCD_Gotoxy(unsigned char x, unsigned char y)
+void CLCD_Gotoxy(unsigned char col, unsigned char row)
 {
-	// 16 * 2 Character LCD
-	switch(y)
+	// the first line indicator : 0x80
+	// the second line indicator : 0xC0
+	// column is just offset from a line indicator
+	switch(row)
 	{
-		case 0 : CLCD_Write_Instruction(0x80 + x); break;
-		case 1 : CLCD_Write_Instruction(0xC0 + x); break;
-		//case 2 : instruction_out(0x90+x); break;
-		//case 3 : instruction_out(0xd0+x); break;
+		case 0 :
+			CLCD_Write_Instruction(0x80+col);
+			break;
+		case 1 :
+			CLCD_Write_Instruction(0xC0+col);
+			break;
+		default:
+			// do nothing
+			break;
 	}
 }
 
-void CLCD_Puts(unsigned char x, unsigned char y, unsigned char *str)
+void CLCD_Puts(unsigned char col, unsigned char row, unsigned char *str)
 {
-	unsigned int i=0;
+	CLCD_Gotoxy(col,row);
 
-	CLCD_Gotoxy(x,y);
-	do
+	for(uint32_t i=0;str[i]!='\0'&&str[i]!='\n';i++)
 	{
 		CLCD_Write_Display(str[i]);
 	}
-	while(str[++i]!='\0');
 }
 
 void CLCD_Init(void)
