@@ -175,7 +175,93 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+#define	MAX_SCALE	4
 
+#define	TRUE	1
+#define	FALSE	0
+
+const int	prescaler[MAX_SCALE] = {32061,28571,25455,24069};
+const int	autoreload[MAX_SCALE] = {10,10,10,10};
+
+int	toggle[MAX_SCALE];
+
+void	HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	switch(GPIO_Pin)
+	{
+		case	GPIO_PIN_3:		// SW1
+			if( toggle[0] == FALSE )
+			{
+				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[0]);
+				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[0]);
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
+				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+				toggle[0] = TRUE;
+				toggle[1] = toggle[2] = toggle[3] = FALSE;
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
+				toggle[0] = FALSE;
+			}
+			break;
+		case	GPIO_PIN_15:	// SW2
+			if( toggle[1] == FALSE )
+			{
+				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[1]);
+				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[1]);
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
+				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+				toggle[1] = TRUE;
+				toggle[0] = toggle[2] = toggle[3] = FALSE;
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
+				toggle[1] = FALSE;
+			}
+			break;
+		case	GPIO_PIN_4:		// SW1
+			if( toggle[2] == FALSE )
+			{
+				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[2]);
+				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[2]);
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
+				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+				toggle[2] = TRUE;
+				toggle[0] = toggle[1] = toggle[3] = FALSE;
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
+				toggle[2] = FALSE;
+			}
+			break;
+		case	GPIO_PIN_10:	// SW1
+			if( toggle[3] == FALSE )
+			{
+				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[3]);
+				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[3]);
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
+				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+				toggle[3] = TRUE;
+				toggle[0] = toggle[1] = toggle[2] = FALSE;
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
+				toggle[3] = FALSE;
+			}
+			break;
+		default:
+			// do nothing
+			break;
+	}
+}
 /* USER CODE END 4 */
 
 /**
