@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include	"init.h"
+#include	"clcd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,6 +96,9 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
+  CLCD_Init();
+  CLCD_Puts(0,0,"PWM");
+
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
@@ -114,18 +118,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int	t[2] = {175,1325};	// 175~1325
-  int	idx = 0;
 
   while (1)
   {
     /* USER CODE END WHILE */
-	//for(int i=180;i>=170;i--)
-	//{
-		__HAL_TIM_SET_COMPARE(&htim10,TIM_CHANNEL_1,t[idx]);
-		idx = (idx+1)%2;
-		HAL_Delay(1500);
-	//}
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -183,78 +180,60 @@ void SystemClock_Config(void)
 const int	prescaler[MAX_SCALE] = {32061,28571,25455,24069};
 const int	autoreload[MAX_SCALE] = {10,10,10,10};
 
-int	toggle[MAX_SCALE];
-
 void	HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	switch(GPIO_Pin)
 	{
 		case	GPIO_PIN_3:		// SW1
-			if( toggle[0] == FALSE )
+			if( HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_3) == GPIO_PIN_SET )
 			{
 				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[0]);
 				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[0]);
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
 				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-				toggle[0] = TRUE;
-				toggle[1] = toggle[2] = toggle[3] = FALSE;
 			}
 			else
 			{
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
-				toggle[0] = FALSE;
 			}
 			break;
 		case	GPIO_PIN_15:	// SW2
-			if( toggle[1] == FALSE )
+			if( HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_15) == GPIO_PIN_SET )
 			{
 				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[1]);
 				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[1]);
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
 				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-				toggle[1] = TRUE;
-				toggle[0] = toggle[2] = toggle[3] = FALSE;
 			}
 			else
 			{
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
-				toggle[1] = FALSE;
 			}
 			break;
-		case	GPIO_PIN_4:		// SW1
-			if( toggle[2] == FALSE )
+		case	GPIO_PIN_4:		// SW3
+			if( HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_4) == GPIO_PIN_SET )
 			{
 				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[2]);
 				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[2]);
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
 				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-				toggle[2] = TRUE;
-				toggle[0] = toggle[1] = toggle[3] = FALSE;
 			}
 			else
 			{
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
-				toggle[2] = FALSE;
 			}
 			break;
-		case	GPIO_PIN_10:	// SW1
-			if( toggle[3] == FALSE )
+		case	GPIO_PIN_10:	// SW4
+			if( HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_10) == GPIO_PIN_SET )
 			{
 				__HAL_TIM_SET_PRESCALER(&htim2,prescaler[3]);
 				__HAL_TIM_SET_AUTORELOAD(&htim2,autoreload[3]);
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,__HAL_TIM_GET_AUTORELOAD(&htim2)/2);
 				HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-				toggle[3] = TRUE;
-				toggle[0] = toggle[1] = toggle[2] = FALSE;
 			}
 			else
 			{
 				__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,0);
-				toggle[3] = FALSE;
 			}
 			break;
 		default:
