@@ -106,6 +106,10 @@ int main(void)
   CLCD_Clear();
 
   HAL_ADC_Start_DMA(&hadc1,&adc_value[0],ADC_SIZE);
+
+  __HAL_TIM_SET_PRESCALER(&htim2,adc_value[0]);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -120,6 +124,9 @@ int main(void)
 
 	sprintf(str,"%04d  %04d",adc_value[2],adc_value[3]);
 	CLCD_Puts(0,1,str);
+
+	__HAL_TIM_SET_PRESCALER(&htim2,adc_value[0]);
+	HAL_Delay(1);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
