@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,6 +105,12 @@ static int	set_LED_state_by_switch(int switch_idx)
 
 	return	0;
 }
+
+int	_write(int file,char* p,int len)
+{
+	HAL_UART_Transmit(&huart3, (uint8_t*)p, len, 10);
+	return	0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -145,14 +151,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  uint8_t	a;
+	set_LED_state_by_switch(SW1);
+	printf("Hello World %f!!\n",4.21);
+	HAL_Delay(1000);
 
-	  set_LED_state_by_switch(SW1);
-
-	  if( HAL_UART_Receive(&huart3, &a, sizeof(a), 10) == HAL_OK )
-	  {
-		  HAL_UART_Transmit(&huart3, &a, sizeof(a), 10);
-	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
