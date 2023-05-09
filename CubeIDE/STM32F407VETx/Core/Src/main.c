@@ -28,23 +28,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-	GPIO_TypeDef*	gpio_type;
-	uint16_t		gpio_pin;
-} GPIO_Info;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define	LEFT		0
-#define	RIGHT		1
-#define	NUM_OF_LEDs	3
 
-#define	LED_OFF	GPIO_PIN_SET
-#define	LED_ON	GPIO_PIN_RESET
-
-#define	SWITCH_ON	GPIO_PIN_SET
-#define	SWITCH_OFF	GPIO_PIN_RESET
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,21 +44,7 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const static GPIO_Info	led[][NUM_OF_LEDs] = {
-		{{GPIOD,GPIO_PIN_12},{GPIOD,GPIO_PIN_13},{GPIOD,GPIO_PIN_14}},
-		{{GPIOC,GPIO_PIN_6},{GPIOB,GPIO_PIN_5},{GPIOB,GPIO_PIN_0}}
-};
 
-const static GPIO_Info	swtch[] = {
-		{GPIOE,GPIO_PIN_3}
-};
-
-enum{
-	SW1 = 0,
-	SW2 = 1,
-	SW3 = 2,
-	SW4 = 3
-};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
