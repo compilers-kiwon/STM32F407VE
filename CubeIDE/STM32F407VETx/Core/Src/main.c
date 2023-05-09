@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -27,12 +28,23 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+	GPIO_TypeDef*	gpio_type;
+	uint16_t		gpio_pin;
+} GPIO_Info;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define	LEFT		0
+#define	RIGHT		1
+#define	NUM_OF_LEDs	3
 
+#define	LED_OFF	GPIO_PIN_SET
+#define	LED_ON	GPIO_PIN_RESET
+
+#define	SWITCH_ON	GPIO_PIN_SET
+#define	SWITCH_OFF	GPIO_PIN_RESET
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,7 +55,21 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+const static GPIO_Info	led[][NUM_OF_LEDs] = {
+		{{GPIOD,GPIO_PIN_12},{GPIOD,GPIO_PIN_13},{GPIOD,GPIO_PIN_14}},
+		{{GPIOC,GPIO_PIN_6},{GPIOB,GPIO_PIN_5},{GPIOB,GPIO_PIN_0}}
+};
 
+const static GPIO_Info	swtch[] = {
+		{GPIOE,GPIO_PIN_3}
+};
+
+enum{
+	SW1 = 0,
+	SW2 = 1,
+	SW3 = 2,
+	SW4 = 3
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -54,7 +80,31 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static int	change_LED_state(int led_pos,int pin_state)
+{
+	for(int i=0;i<NUM_OF_LEDs;i++)
+	{
+		HAL_GPIO_WritePin(led[led_pos][i].gpio_type, led[led_pos][i].gpio_pin, pin_state);
+	}
 
+	return	0;
+}
+
+static int	set_LED_state_by_switch(int switch_idx)
+{
+	if( HAL_GPIO_ReadPin(swtch[switch_idx].gpio_type, swtch[switch_idx].gpio_pin) == SWITCH_ON )
+	{
+		change_LED_state(LEFT, LED_ON);
+		change_LED_state(RIGHT, LED_ON);
+	}
+	else
+	{
+		change_LED_state(LEFT, LED_OFF);
+		change_LED_state(RIGHT, LED_OFF);
+	}
+
+	return	0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -85,27 +135,23 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+  change_LED_state(LEFT, LED_OFF);
+  change_LED_state(RIGHT, LED_OFF);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if( HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_SET )
+	  uint8_t	a;
+
+	  set_LED_state_by_switch(SW1);
+
+	  if( HAL_UART_Receive(&huart3, &a, sizeof(a), 10) == HAL_OK )
 	  {
-		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-	  }
-	  else
-	  {
-		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+		  HAL_UART_Transmit(&huart3, &a, sizeof(a), 10);
 	  }
     /* USER CODE END WHILE */
 
