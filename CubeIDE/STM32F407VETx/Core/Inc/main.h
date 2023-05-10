@@ -72,12 +72,21 @@ enum{
 	SW4 = 3
 };
 
+#define	TRUE	1
+#define	FALSE	0
+
 #define	MAX_RANDOM_NUMBER	10000
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 #define	min(a,b)	((a)<(b)?(a):(b))
+
+#define	display_7SEG_number(n) \
+	{_7SEG_SetNumber(DGT1,(n)/10,OFF);_7SEG_SetNumber(DGT2,(n)%10,OFF);}
+
+#define	set_sig(sig)	((sig)=TRUE)
+#define	clear_sig(sig)	((sig)=FALSE)
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
