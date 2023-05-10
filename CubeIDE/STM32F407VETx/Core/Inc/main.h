@@ -71,11 +71,13 @@ enum{
 	SW3 = 2,
 	SW4 = 3
 };
+
+#define	MAX_RANDOM_NUMBER	10000
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define	min(a,b)	((a)<(b)?(a):(b))
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "rng.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "CLCD.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +40,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define	get_random_number(MAX_NUM)	(HAL_RNG_GetRandomNumber(&hrng)%(MAX_NUM))
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -118,6 +120,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
+  MX_RNG_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -126,6 +129,13 @@ int main(void)
   change_LED_state(RIGHT, LED_OFF);
 
   HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
+
+  CLCD_GPIO_Init();
+  CLCD_Init();
+
+  CLCD_Puts(CLCD_COL0, CLCD_ROW0, (uint8_t*)"Welcome to");
+  CLCD_Puts(CLCD_COL0, CLCD_ROW1, (uint8_t*)"STM32F407VETx");
+  HAL_Delay(2000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -133,7 +143,8 @@ int main(void)
   while (1)
   {
 	set_LED_state_by_switch(SW1);
-
+	CLCD_Printf("Random Number:\n%d\n",(int)get_random_number(MAX_RANDOM_NUMBER));
+	HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -163,9 +174,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLN = 72;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -177,10 +188,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
