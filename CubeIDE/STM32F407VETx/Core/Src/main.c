@@ -44,11 +44,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static uint8_t	uart3_rx_data;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -117,9 +118,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   change_LED_state(LEFT, LED_OFF);
   change_LED_state(RIGHT, LED_OFF);
+
+  HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,8 +133,6 @@ int main(void)
   while (1)
   {
 	set_LED_state_by_switch(SW1);
-	printf("Hello World %f!!\n",4.21);
-	HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
@@ -182,8 +186,26 @@ void SystemClock_Config(void)
   }
 }
 
-/* USER CODE BEGIN 4 */
+/**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* USART3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART3_IRQn);
+}
 
+/* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if( huart->Instance == USART3 )
+	{
+		HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
+		HAL_UART_Transmit(&huart3, &uart3_rx_data, sizeof(uart3_rx_data), 10);
+	}
+}
 /* USER CODE END 4 */
 
 /**
