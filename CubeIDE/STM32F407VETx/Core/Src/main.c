@@ -221,9 +221,34 @@ static void MX_NVIC_Init(void)
   /* TIM7_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(TIM7_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(TIM7_IRQn);
+  /* EXTI3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+  /* EXTI4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+  /* EXTI15_10_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	uint32_t	led_idx;
+
+	switch(GPIO_Pin)
+	{
+		case GPIO_PIN_3:led_idx=0;break;
+		case GPIO_PIN_15:led_idx=1;break;
+		case GPIO_PIN_4:led_idx=2;break;
+		case GPIO_PIN_10:set_sig(random_number_sig);break;
+		default:/*do nothing*/;break;
+	}
+
+	HAL_GPIO_TogglePin(led[LEFT][led_idx].gpio_type, led[LEFT][led_idx].gpio_pin);
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if( huart->Instance == USART3 )
@@ -241,12 +266,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if( htim->Instance == TIM7 )
 	{
-		set_sig(random_number_sig);
+		//set_sig(random_number_sig);
 
 		display_7SEG_number(cnt);
 		cnt = (cnt+1)%100;
 
-		change_LED_state(LEFT, left_led_state);
+		//change_LED_state(LEFT, left_led_state);
 		change_LED_state(RIGHT, right_led_state);
 
 		left_led_state = (left_led_state==LED_OFF)?LED_ON:LED_OFF;
