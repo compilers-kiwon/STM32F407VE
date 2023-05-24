@@ -37,12 +37,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define	RIGHT_SG90_CCR	176
+#define	LEFT_SG90_CCR	1319
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define	get_random_number(MAX_NUM)	(HAL_RNG_GetRandomNumber(&hrng)%(MAX_NUM))
+#define	update_SG90_dir(cur)		((cur)=((cur)==LEFT_SG90_CCR)?RIGHT_SG90_CCR:LEFT_SG90_CCR)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -50,6 +53,7 @@
 /* USER CODE BEGIN PV */
 static uint8_t	uart3_rx_data;
 static uint8_t	random_number_sig;
+static uint16_t	sg90_ccr = LEFT_SG90_CCR;
 
 /* USER CODE END PV */
 
@@ -126,6 +130,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_RNG_Init();
   MX_TIM7_Init();
+  MX_TIM10_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -144,11 +149,13 @@ int main(void)
 
   CLCD_Puts(CLCD_COL0, CLCD_ROW0, (uint8_t*)"Welcome to");
   CLCD_Puts(CLCD_COL0, CLCD_ROW1, (uint8_t*)"STM32F407VETx");
-  HAL_Delay(2000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -157,8 +164,10 @@ int main(void)
 	  if( random_number_sig == TRUE )
 	  {
 		  clear_sig(random_number_sig);
-		  CLCD_Printf("Random Number:\n%d\n",
-		  				(int)get_random_number(MAX_RANDOM_NUMBER));
+		  CLCD_Printf("RNG:%d\n"
+				  	  "SG90:%s\n",
+					  (int)get_random_number(MAX_RANDOM_NUMBER),
+					  (sg90_ccr==RIGHT_SG90_CCR)?"Right":"Left");
 	  }
   }
   /* USER CODE END 3 */
@@ -242,7 +251,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		case GPIO_PIN_3:led_idx=0;break;
 		case GPIO_PIN_15:led_idx=1;break;
 		case GPIO_PIN_4:led_idx=2;break;
-		case GPIO_PIN_10:set_sig(random_number_sig);break;
+		case GPIO_PIN_10:
+			set_sig(random_number_sig);
+			TIM10->CCR1 = update_SG90_dir(sg90_ccr);
+			break;
 		default:/*do nothing*/;break;
 	}
 
