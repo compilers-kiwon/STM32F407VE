@@ -40,21 +40,48 @@
 #define	RIGHT_SG90_CCR	176
 #define	LEFT_SG90_CCR	1319
 
+#define	MAX_OCTAVE	8
+#define	MAX_SCALE	12
+
+#define	BUZZER_SRC_TIMER		(TIM2)
+#define	BUZZER_SRC_CHANNEL		(TIM_CHANNEL_1)
+#define	BUZZER_SRC_TIMER_FREQ	84000000
+#define	BUZZER_SRC_TIMER_ARR	168
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define	get_random_number(MAX_NUM)	(HAL_RNG_GetRandomNumber(&hrng)%(MAX_NUM))
 #define	update_SG90_dir(cur)		((cur)=((cur)==LEFT_SG90_CCR)?RIGHT_SG90_CCR:LEFT_SG90_CCR)
+
+#define	next_octave(o)	(((o)+1)%MAX_OCTAVE)
+#define	next_scale(s)	(((s)+1)%MAX_SCALE)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 static uint8_t	uart3_rx_data;
-static uint8_t	random_number_sig;
+static uint8_t	clcd_out_sig;
 static uint16_t	sg90_ccr = LEFT_SG90_CCR;
 
+static uint32_t	freq[MAX_OCTAVE][MAX_SCALE] = {
+		{33,35,37,39,41,44,46,49,52,55,58,62},
+		{65,69,73,78,82,87,92,98,104,110,117,123},
+		{131,139,147,156,165,175,185,196,208,220,233,247},
+		{262,277,294,311,330,349,370,392,415,440,466,494},
+		{523,554,587,622,659,698,740,784,831,880,932,988},
+		{1047,1109,1175,1245,1319,1397,1480,1568,1661,1760,1865,1976},
+		{2093,2217,2349,2489,2637,2794,2960,3136,3322,3520,3729,3951},
+		{4186,4435,4699,4978,5274,5588,5920,6272,6645,7040,7459,7902}
+};
+
+static char* scale[MAX_SCALE] = {
+		"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"
+};
+
+static int32_t	cur_octave = MAX_OCTAVE-1;
+static int32_t	cur_scale = MAX_SCALE-1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,6 +124,24 @@ int	_write(int file,char* p,int len)
 	HAL_UART_Transmit(&huart3, (uint8_t*)p, len, 10);
 	return	0;
 }
+
+int	set_buzzer(void)
+{
+	if( ++cur_scale == MAX_SCALE )
+	{
+		cur_scale = 0;
+
+		if( ++cur_octave == MAX_OCTAVE )
+		{
+			cur_octave = 0;
+		}
+	}
+
+	BUZZER_SRC_TIMER->PSC =
+			BUZZER_SRC_TIMER_FREQ/(freq[cur_octave][cur_scale]*BUZZER_SRC_TIMER_ARR);
+
+	return	0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -131,6 +176,7 @@ int main(void)
   MX_RNG_Init();
   MX_TIM7_Init();
   MX_TIM10_Init();
+  MX_TIM2_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -155,19 +201,20 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if( random_number_sig == TRUE )
+	  if( clcd_out_sig == TRUE )
 	  {
-		  clear_sig(random_number_sig);
-		  CLCD_Printf("RNG:%d\n"
-				  	  "SG90:%s\n",
+		  clear_sig(clcd_out_sig);
+		  CLCD_Printf("RNG:%d,SG90:%s,Oct:%d,Scl:%s",
 					  (int)get_random_number(MAX_RANDOM_NUMBER),
-					  (sg90_ccr==RIGHT_SG90_CCR)?"Right":"Left");
+					  (sg90_ccr==RIGHT_SG90_CCR)?"Right":"Left",
+					  (int)cur_octave+1,scale[cur_scale]);
 	  }
   }
   /* USER CODE END 3 */
@@ -252,8 +299,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		case GPIO_PIN_15:led_idx=1;break;
 		case GPIO_PIN_4:led_idx=2;break;
 		case GPIO_PIN_10:
-			set_sig(random_number_sig);
+			set_sig(clcd_out_sig);
 			TIM10->CCR1 = update_SG90_dir(sg90_ccr);
+			set_buzzer();
 			break;
 		default:/*do nothing*/;break;
 	}
