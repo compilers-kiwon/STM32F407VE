@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "dma.h"
 #include "rng.h"
 #include "tim.h"
 #include "usart.h"
@@ -47,6 +49,8 @@
 #define	BUZZER_SRC_CHANNEL		(TIM_CHANNEL_1)
 #define	BUZZER_SRC_TIMER_FREQ	84000000
 #define	BUZZER_SRC_TIMER_ARR	168
+
+#define	NUM_OF_ADC_CONVERSION	4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,6 +86,8 @@ static char* scale[MAX_SCALE] = {
 
 static int32_t	cur_octave = MAX_OCTAVE-1;
 static int32_t	cur_scale = MAX_SCALE-1;
+
+volatile static uint16_t	adc_val[NUM_OF_ADC_CONVERSION];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -127,6 +133,7 @@ int	_write(int file,char* p,int len)
 
 int	set_buzzer(void)
 {
+	/*
 	if( ++cur_scale == MAX_SCALE )
 	{
 		cur_scale = 0;
@@ -136,9 +143,9 @@ int	set_buzzer(void)
 			cur_octave = 0;
 		}
 	}
-
+	*/
 	BUZZER_SRC_TIMER->PSC =
-			BUZZER_SRC_TIMER_FREQ/(freq[cur_octave][cur_scale]*BUZZER_SRC_TIMER_ARR);
+			BUZZER_SRC_TIMER_FREQ/(/*freq[cur_octave][cur_scale]*/adc_val[0]*BUZZER_SRC_TIMER_ARR);
 
 	return	0;
 }
@@ -172,11 +179,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART3_UART_Init();
   MX_RNG_Init();
   MX_TIM7_Init();
   MX_TIM10_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -203,19 +212,27 @@ int main(void)
   HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
+  HAL_ADC_Start_DMA(&hadc1,adc_val,4);
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
 	  if( clcd_out_sig == TRUE )
 	  {
 		  clear_sig(clcd_out_sig);
+		  /*
 		  CLCD_Printf("RNG:%d,SG90:%s,Oct:%d,Scl:%s",
 					  (int)get_random_number(MAX_RANDOM_NUMBER),
 					  (sg90_ccr==RIGHT_SG90_CCR)?"Right":"Left",
 					  (int)cur_octave+1,scale[cur_scale]);
+		  */
+		  CLCD_Printf("%4d %4d\n%4d %4d",
+		  	  			adc_val[0],adc_val[1],adc_val[2],adc_val[3]);
 	  }
+
   }
   /* USER CODE END 3 */
 }
@@ -300,7 +317,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		case GPIO_PIN_4:led_idx=2;break;
 		case GPIO_PIN_10:
 			set_sig(clcd_out_sig);
-			TIM10->CCR1 = update_SG90_dir(sg90_ccr);
+			//TIM10->CCR1 = update_SG90_dir(sg90_ccr);
 			set_buzzer();
 			break;
 		default:/*do nothing*/;break;
