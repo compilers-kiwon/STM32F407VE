@@ -67,6 +67,7 @@
 /* USER CODE BEGIN PV */
 static uint8_t	uart3_rx_data;
 static uint8_t	clcd_out_sig;
+#if 0
 static uint16_t	sg90_ccr = LEFT_SG90_CCR;
 
 static uint32_t	freq[MAX_OCTAVE][MAX_SCALE] = {
@@ -86,8 +87,13 @@ static char* scale[MAX_SCALE] = {
 
 static int32_t	cur_octave = MAX_OCTAVE-1;
 static int32_t	cur_scale = MAX_SCALE-1;
-
+#endif
+static uint8_t	src_idx_of_adc;
 volatile static uint16_t	adc_val[NUM_OF_ADC_CONVERSION];
+const static char*	adc_name[NUM_OF_ADC_CONVERSION] = {"VR1","VR2","VR3","CDS"};
+const static struct{uint32_t min_val,max_val;}
+	resolution[NUM_OF_ADC_CONVERSION] = {{0,4095},{0,4095},{0,4095},{0,4095}};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,6 +105,11 @@ static void MX_NVIC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static uint32_t	get_7SEG_value(uint8_t adc_ptr)
+{
+	return	100*(uint32_t)adc_val[adc_ptr]/resolution[adc_ptr].max_val;
+}
+
 static int	change_LED_state(int led_pos,int pin_state)
 {
 	for(int i=0;i<NUM_OF_LEDs;i++)
@@ -131,6 +142,7 @@ int	_write(int file,char* p,int len)
 	return	0;
 }
 
+#if 0
 int	set_buzzer(void)
 {
 	/*
@@ -149,6 +161,7 @@ int	set_buzzer(void)
 
 	return	0;
 }
+#endif
 /* USER CODE END 0 */
 
 /**
@@ -183,15 +196,13 @@ int main(void)
   MX_USART3_UART_Init();
   MX_RNG_Init();
   MX_TIM7_Init();
-  MX_TIM10_Init();
-  MX_TIM2_Init();
   MX_ADC1_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  //change_LED_state(LEFT, LED_OFF);
-  //change_LED_state(RIGHT, LED_OFF);
+  change_LED_state(LEFT, LED_OFF);
+  change_LED_state(RIGHT, LED_OFF);
   set_LED_state_by_switch(SW1);
 
   HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
@@ -201,18 +212,18 @@ int main(void)
   CLCD_Init();
 
   _7SEG_GPIO_Init();
-
-  CLCD_Puts(CLCD_COL0, CLCD_ROW0, (uint8_t*)"Welcome to");
-  CLCD_Puts(CLCD_COL0, CLCD_ROW1, (uint8_t*)"STM32F407VETx");
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+#if 0
   HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+#endif
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_val,4);
 
-  HAL_ADC_Start_DMA(&hadc1,adc_val,4);
+  display_7SEG_number(get_7SEG_value(src_idx_of_adc));
+  set_sig(clcd_out_sig);
 
   while (1)
   {
@@ -223,14 +234,9 @@ int main(void)
 	  if( clcd_out_sig == TRUE )
 	  {
 		  clear_sig(clcd_out_sig);
-		  /*
-		  CLCD_Printf("RNG:%d,SG90:%s,Oct:%d,Scl:%s",
+		  CLCD_Printf("RNG:%03d\n7SEG:%s",
 					  (int)get_random_number(MAX_RANDOM_NUMBER),
-					  (sg90_ccr==RIGHT_SG90_CCR)?"Right":"Left",
-					  (int)cur_octave+1,scale[cur_scale]);
-		  */
-		  CLCD_Printf("%4d %4d\n%4d %4d",
-		  	  			adc_val[0],adc_val[1],adc_val[2],adc_val[3]);
+					  adc_name[src_idx_of_adc]);
 	  }
 
   }
@@ -316,9 +322,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		case GPIO_PIN_15:led_idx=1;break;
 		case GPIO_PIN_4:led_idx=2;break;
 		case GPIO_PIN_10:
+			src_idx_of_adc = (src_idx_of_adc+1)%NUM_OF_ADC_CONVERSION;
 			set_sig(clcd_out_sig);
-			//TIM10->CCR1 = update_SG90_dir(sg90_ccr);
-			set_buzzer();
 			break;
 		default:/*do nothing*/;break;
 	}
@@ -339,14 +344,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	static int	left_led_state = LED_OFF;
 	static int	right_led_state = LED_ON;
-	static int	cnt = 0;
 
 	if( htim->Instance == TIM7 )
 	{
-		//set_sig(random_number_sig);
-
-		display_7SEG_number(cnt);
-		cnt = (cnt+1)%100;
+		display_7SEG_number(get_7SEG_value(src_idx_of_adc));
 
 		//change_LED_state(LEFT, left_led_state);
 		change_LED_state(RIGHT, right_led_state);

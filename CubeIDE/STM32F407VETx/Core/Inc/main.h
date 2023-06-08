@@ -75,7 +75,7 @@ enum{
 #define	TRUE	1
 #define	FALSE	0
 
-#define	MAX_RANDOM_NUMBER	10000
+#define	MAX_RANDOM_NUMBER	1000
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
