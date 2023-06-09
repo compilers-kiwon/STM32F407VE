@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "i2c.h"
 #include "rng.h"
 #include "tim.h"
 #include "usart.h"
@@ -34,7 +35,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef	struct{
+	uint8_t		corrupted;
+	uint32_t	used_time;
+}DeviceInfo;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -51,6 +55,13 @@
 #define	BUZZER_SRC_TIMER_ARR	168
 
 #define	NUM_OF_ADC_CONVERSION	4
+
+#define	TRUE	1
+#define	FALSE	0
+
+#define	EEPROM_I2C_ADDR		0xA0
+#define	EEPROM_DATA_ADDR	0x00
+#define	EEPROM_TIMEOUT		10	// ms
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -65,8 +76,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// UART
 static uint8_t	uart3_rx_data;
+
+// CLDC
 static uint8_t	clcd_out_sig;
+
 #if 0
 static uint16_t	sg90_ccr = LEFT_SG90_CCR;
 
@@ -88,12 +103,18 @@ static char* scale[MAX_SCALE] = {
 static int32_t	cur_octave = MAX_OCTAVE-1;
 static int32_t	cur_scale = MAX_SCALE-1;
 #endif
+// ADC
 static uint8_t	src_idx_of_adc;
 volatile static uint16_t	adc_val[NUM_OF_ADC_CONVERSION];
 const static char*	adc_name[NUM_OF_ADC_CONVERSION] = {"VR1","VR2","VR3","CDS"};
 const static struct{uint32_t min_val,max_val;}
 	resolution[NUM_OF_ADC_CONVERSION] = {{0,4095},{0,4095},{0,4095},{0,4095}};
 
+// EEPROM
+static union{
+	uint8_t		data[sizeof(DeviceInfo)];
+	DeviceInfo	d;
+} device_info;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,6 +126,41 @@ static void MX_NVIC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static uint32_t	reset_device_info(void)
+{
+	uint8_t	reset_data[sizeof(DeviceInfo)] = {0,};
+
+	HAL_I2C_Mem_Write(&hi2c1, EEPROM_I2C_ADDR, EEPROM_DATA_ADDR,
+			I2C_MEMADD_SIZE_8BIT, reset_data, sizeof(DeviceInfo), EEPROM_TIMEOUT);
+	return	0;
+}
+
+static uint32_t read_device_info(void)
+{
+	HAL_I2C_Mem_Read(&hi2c1, EEPROM_I2C_ADDR, EEPROM_DATA_ADDR,
+			I2C_MEMADD_SIZE_8BIT, device_info.data, sizeof(DeviceInfo), EEPROM_TIMEOUT);
+
+	printf("device_info.d.corrupted : %s\n",device_info.d.corrupted?"True":"False");
+
+	if( device_info.d.corrupted != FALSE )
+	{
+		reset_device_info();
+		HAL_I2C_Mem_Read(&hi2c1, EEPROM_I2C_ADDR, EEPROM_DATA_ADDR,
+			I2C_MEMADD_SIZE_8BIT, device_info.data, sizeof(DeviceInfo), EEPROM_TIMEOUT);
+	}
+
+	return	0;
+}
+
+static uint32_t write_device_info(void)
+{
+	printf("Write Device Information, %lu\n",device_info.d.used_time);
+	HAL_I2C_Mem_Write(&hi2c1, EEPROM_I2C_ADDR, EEPROM_DATA_ADDR,
+				I2C_MEMADD_SIZE_8BIT, device_info.data, sizeof(DeviceInfo), EEPROM_TIMEOUT);
+
+	return	0;
+}
+
 static uint32_t	get_7SEG_value(uint8_t adc_ptr)
 {
 	return	100*(uint32_t)adc_val[adc_ptr]/resolution[adc_ptr].max_val;
@@ -197,6 +253,7 @@ int main(void)
   MX_RNG_Init();
   MX_TIM7_Init();
   MX_ADC1_Init();
+  MX_I2C1_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -204,9 +261,6 @@ int main(void)
   change_LED_state(LEFT, LED_OFF);
   change_LED_state(RIGHT, LED_OFF);
   set_LED_state_by_switch(SW1);
-
-  HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
-  HAL_TIM_Base_Start_IT(&htim7);
 
   CLCD_GPIO_Init();
   CLCD_Init();
@@ -216,11 +270,16 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  read_device_info();
+  CLCD_Printf("Welcome!!\nUsed time:%lu",device_info.d.used_time);
+  HAL_Delay(2000);
 #if 0
   HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 #endif
+  HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_val,4);
+  HAL_TIM_Base_Start_IT(&htim7);
 
   display_7SEG_number(get_7SEG_value(src_idx_of_adc));
   set_sig(clcd_out_sig);
@@ -347,6 +406,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if( htim->Instance == TIM7 )
 	{
+		device_info.d.used_time++;
+		write_device_info();
+
 		display_7SEG_number(get_7SEG_value(src_idx_of_adc));
 
 		//change_LED_state(LEFT, left_led_state);
