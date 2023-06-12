@@ -22,6 +22,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "rng.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -31,6 +32,8 @@
 #include <stdio.h>
 #include "CLCD.h"
 #include "7SEG.h"
+#include "VS1003.h"
+#include "MP3Sample.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +65,9 @@ typedef	struct{
 #define	EEPROM_I2C_ADDR		0xA0
 #define	EEPROM_DATA_ADDR	0x00
 #define	EEPROM_TIMEOUT		10	// ms
+
+#define	MP3_DATA_PACKET_SIZE	32
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -218,6 +224,29 @@ int	set_buzzer(void)
 	return	0;
 }
 #endif
+
+uint32_t	send_mp3_data_to_codec(uint8_t* data,uint32_t size)
+{
+	static uint32_t	cur_ptr = 0;
+	uint32_t		cur_size;
+
+	if( MP3_DREQ != GPIO_PIN_SET )
+	{
+		return	0;
+	}
+
+	cur_size = min(size-cur_ptr,MP3_DATA_PACKET_SIZE);
+	VS1003_WriteData(&MP3_DATA[cur_ptr],cur_size);
+
+	cur_ptr += cur_size;
+
+	if( cur_ptr >= size )
+	{
+	  cur_ptr = 0;
+	}
+
+	return	0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -254,6 +283,7 @@ int main(void)
   MX_TIM7_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
+  MX_SPI2_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -266,6 +296,9 @@ int main(void)
   CLCD_Init();
 
   _7SEG_GPIO_Init();
+
+  VS1003_Init();
+  VS1003_SoftReset();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -286,6 +319,7 @@ int main(void)
 
   while (1)
   {
+	  send_mp3_data_to_codec(MP3_DATA,sizeof(MP3_DATA));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -403,19 +437,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	static int	left_led_state = LED_OFF;
 	static int	right_led_state = LED_ON;
+	static int	cnt = 0;
 
 	if( htim->Instance == TIM7 )
 	{
-		device_info.d.used_time++;
-		write_device_info();
-
 		display_7SEG_number(get_7SEG_value(src_idx_of_adc));
 
-		//change_LED_state(LEFT, left_led_state);
-		change_LED_state(RIGHT, right_led_state);
+		if( ++cnt%4 == 0 )
+		{
+			device_info.d.used_time++;
+			write_device_info();
 
-		left_led_state = (left_led_state==LED_OFF)?LED_ON:LED_OFF;
-		right_led_state = (right_led_state==LED_ON)?LED_OFF:LED_ON;
+			//change_LED_state(LEFT, left_led_state);
+			change_LED_state(RIGHT, right_led_state);
+
+			left_led_state = (left_led_state==LED_OFF)?LED_ON:LED_OFF;
+			right_led_state = (right_led_state==LED_ON)?LED_OFF:LED_ON;
+		}
 	}
 }
 /* USER CODE END 4 */
