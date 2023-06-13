@@ -20,8 +20,10 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "fatfs.h"
 #include "i2c.h"
 #include "rng.h"
+#include "sdio.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -67,7 +69,7 @@ typedef	struct{
 #define	EEPROM_TIMEOUT		10	// ms
 
 #define	MP3_DATA_PACKET_SIZE	32
-
+#define	NUM_OF_TRACKS			4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,6 +79,9 @@ typedef	struct{
 
 #define	next_octave(o)	(((o)+1)%MAX_OCTAVE)
 #define	next_scale(s)	(((s)+1)%MAX_SCALE)
+
+#define	PAUSE	0
+#define	PLAY	1
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -121,6 +126,14 @@ static union{
 	uint8_t		data[sizeof(DeviceInfo)];
 	DeviceInfo	d;
 } device_info;
+
+// MP3
+const static uint8_t*	MP3_file_name[] = {
+		"0:/track1.mp3","0:/track2.mp3","0:/track3.mp3","0:/track4.mp3"
+};
+
+static uint8_t	new_mp3_sig;
+static uint32_t	mp3_ptr,cur_mp3_mode,cur_play_ptr;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -225,24 +238,84 @@ int	set_buzzer(void)
 }
 #endif
 
-uint32_t	send_mp3_data_to_codec(uint8_t* data,uint32_t size)
+uint32_t	send_mp3_data_to_codec(void)
 {
-	static uint32_t	cur_ptr = 0;
-	uint32_t		cur_size;
+	uint8_t		buf[32];
+	uint32_t	read_size;
 
 	if( MP3_DREQ != GPIO_PIN_SET )
 	{
 		return	0;
 	}
 
-	cur_size = min(size-cur_ptr,MP3_DATA_PACKET_SIZE);
-	VS1003_WriteData(&MP3_DATA[cur_ptr],cur_size);
-
-	cur_ptr += cur_size;
-
-	if( cur_ptr >= size )
+	if( (retSD=f_read(&SDFile,buf,32,&read_size)) != FR_OK )
 	{
-	  cur_ptr = 0;
+		CLCD_Printf("Cannot read\n%s",MP3_file_name[mp3_ptr]);
+		return	0;
+	}
+
+	if( read_size == 0 )
+	{
+		CLCD_Printf("End of Song\n%s",MP3_file_name[mp3_ptr]);
+		return	0;
+	}
+
+	VS1003_WriteData(buf,read_size);
+
+	return	0;
+}
+
+uint8_t	LED_init(void)
+{
+	change_LED_state(LEFT, LED_OFF);
+	change_LED_state(RIGHT, LED_OFF);
+
+	return	0;
+}
+
+uint8_t	set_LED_by_ADC(int led_pos)
+{
+	for(int i=0;i<NUM_OF_LEDs;i++)
+	{
+		HAL_GPIO_WritePin(led[led_pos][i].gpio_type,
+				led[led_pos][i].gpio_pin, (adc_val[i]>=2048));
+	}
+
+	return	0;
+}
+
+uint8_t	mount_SD_card(void)
+{
+	uint8_t	ret = TRUE;
+
+	if( (retSD = f_mount(&SDFatFS,SDPath,1)) == FR_OK )
+	{
+		CLCD_Printf("f_mount() OK %d\nSD %s bus",retSD,
+				(hsd.Init.BusWide==SDIO_BUS_WIDE_1B)?"1 bit":"4 bits");
+	}
+	else
+	{
+		CLCD_Printf("SD %s bus\nFAIL %d",
+				(hsd.Init.BusWide==SDIO_BUS_WIDE_1B)?"1 bit":"4 bits",retSD);
+		HAL_Delay(2000);
+
+		CLCD_Printf("Please try\n%s mode",
+				(hsd.Init.BusWide==SDIO_BUS_WIDE_1B)?"4 bits":"1 bit");
+		ret = FALSE;
+	}
+
+	return	ret;
+}
+
+static uint8_t	mp3_open(void)
+{
+	if( (retSD=f_open(&SDFile,MP3_file_name[mp3_ptr],FA_OPEN_EXISTING|FA_READ)) == FR_OK )
+	{
+		CLCD_Printf("Current Track:\n%s",MP3_file_name[mp3_ptr]);
+	}
+	else
+	{
+		CLCD_Printf("Cannot find %s",MP3_file_name[mp3_ptr]);
 	}
 
 	return	0;
@@ -284,17 +357,16 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_SPI2_Init();
+  MX_SDIO_SD_Init();
+  MX_FATFS_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  change_LED_state(LEFT, LED_OFF);
-  change_LED_state(RIGHT, LED_OFF);
-  set_LED_state_by_switch(SW1);
-
   CLCD_GPIO_Init();
   CLCD_Init();
 
+  LED_init();
   _7SEG_GPIO_Init();
 
   VS1003_Init();
@@ -314,24 +386,43 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_val,4);
   HAL_TIM_Base_Start_IT(&htim7);
 
-  display_7SEG_number(get_7SEG_value(src_idx_of_adc));
-  set_sig(clcd_out_sig);
+  if( mount_SD_card() == TRUE )
+  {
+	  mp3_open();
+	  cur_mp3_mode = PAUSE;
+  }
+
+  set_LED_by_ADC(LEFT);
+  display_7SEG_number(0);
+
+  //CLCD_Printf("%s","Select a song:\nSW1~SW4");
 
   while (1)
   {
-	  send_mp3_data_to_codec(MP3_DATA,sizeof(MP3_DATA));
+	  //send_mp3_data_to_codec(MP3_DATA,sizeof(MP3_DATA));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	  if( clcd_out_sig == TRUE )
+	  if( new_mp3_sig == TRUE )
 	  {
-		  clear_sig(clcd_out_sig);
-		  CLCD_Printf("RNG:%03d\n7SEG:%s",
-					  (int)get_random_number(MAX_RANDOM_NUMBER),
-					  adc_name[src_idx_of_adc]);
+		  printf("%d %s\n",mp3_ptr,MP3_file_name[mp3_ptr]);
+		  clear_sig(new_mp3_sig);
+
+		  if( SD_status(0) == RES_OK )
+		  {
+			  f_close(&SDFile);
+			  mp3_open();
+			  VS1003_SoftReset();
+		  }
+
+		  cur_mp3_mode = PAUSE;
+		  cur_play_ptr = 0;
 	  }
 
+	  if( cur_mp3_mode == PLAY )
+	  {
+		  send_mp3_data_to_codec();
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -393,15 +484,15 @@ static void MX_NVIC_Init(void)
   /* TIM7_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(TIM7_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(TIM7_IRQn);
-  /* EXTI3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
   /* EXTI4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
   /* EXTI15_10_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  /* EXTI3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
@@ -411,17 +502,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	switch(GPIO_Pin)
 	{
-		case GPIO_PIN_3:led_idx=0;break;
-		case GPIO_PIN_15:led_idx=1;break;
-		case GPIO_PIN_4:led_idx=2;break;
-		case GPIO_PIN_10:
-			src_idx_of_adc = (src_idx_of_adc+1)%NUM_OF_ADC_CONVERSION;
-			set_sig(clcd_out_sig);
+		case GPIO_PIN_3:
+			mp3_ptr=(mp3_ptr+(NUM_OF_TRACKS-1))%NUM_OF_TRACKS;
+			set_sig(new_mp3_sig);
 			break;
+		case GPIO_PIN_15:
+			mp3_ptr=(mp3_ptr+1)%NUM_OF_TRACKS;
+			set_sig(new_mp3_sig);
+			break;
+		case GPIO_PIN_4:cur_mp3_mode=PLAY;break;
+		case GPIO_PIN_10:cur_mp3_mode=PAUSE;break;
 		default:/*do nothing*/;break;
 	}
-
-	HAL_GPIO_TogglePin(led[LEFT][led_idx].gpio_type, led[LEFT][led_idx].gpio_pin);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -435,23 +527,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	static int	left_led_state = LED_OFF;
+	//static int	left_led_state = LED_OFF;
 	static int	right_led_state = LED_ON;
 	static int	cnt = 0;
 
 	if( htim->Instance == TIM7 )
 	{
-		display_7SEG_number(get_7SEG_value(src_idx_of_adc));
+		//display_7SEG_number(get_7SEG_value(src_idx_of_adc));
+		set_LED_by_ADC(LEFT);
 
 		if( ++cnt%4 == 0 )
 		{
+			display_7SEG_number((cnt/4)%100);
+
 			device_info.d.used_time++;
 			write_device_info();
 
-			//change_LED_state(LEFT, left_led_state);
 			change_LED_state(RIGHT, right_led_state);
-
-			left_led_state = (left_led_state==LED_OFF)?LED_ON:LED_OFF;
 			right_led_state = (right_led_state==LED_ON)?LED_OFF:LED_ON;
 		}
 	}

@@ -1,6 +1,6 @@
 #include "CLCD.h"
 
-uint8_t	CLCD_buf[MAX_CLCD_BUF_LEN];
+uint8_t	CLCD_buf[MAX_CLCD_BUF_LEN+10];
 
 void CLCD_GPIO_Init(void)
 {
