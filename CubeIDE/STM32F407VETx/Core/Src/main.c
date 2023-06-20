@@ -22,6 +22,7 @@
 #include "dma.h"
 #include "fatfs.h"
 #include "i2c.h"
+#include "lwip.h"
 #include "rng.h"
 #include "sdio.h"
 #include "spi.h"
@@ -36,6 +37,7 @@
 #include "7SEG.h"
 #include "VS1003.h"
 #include "MP3Sample.h"
+#include "udp_echoserver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -359,6 +361,7 @@ int main(void)
   MX_SPI2_Init();
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
+  MX_LWIP_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -371,6 +374,10 @@ int main(void)
 
   VS1003_Init();
   VS1003_SoftReset();
+
+  /* tcp echo server Init */
+  udp_echoserver_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -423,6 +430,21 @@ int main(void)
 	  {
 		  send_mp3_data_to_codec();
 	  }
+
+	  /* Read a received packet from the Ethernet buffers and send it
+		 to the lwIP for handling */
+	  ethernetif_input(&gnetif);
+
+	  /* Handle timeouts */
+	  sys_check_timeouts();
+
+#if 0 //#if LWIP_NETIF_LINK_CALLBACK
+	  Ethernet_Link_Periodic_Handle(&gnetif);
+#endif
+
+#if LWIP_DHCP
+	  DHCP_Periodic_Handle(&gnetif);
+#endif
   }
   /* USER CODE END 3 */
 }
