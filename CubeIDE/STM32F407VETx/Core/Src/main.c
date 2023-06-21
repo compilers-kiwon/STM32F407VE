@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "can.h"
 #include "dma.h"
 #include "fatfs.h"
 #include "i2c.h"
@@ -136,6 +137,11 @@ const static uint8_t*	MP3_file_name[] = {
 
 static uint8_t	new_mp3_sig;
 static uint32_t	mp3_ptr,cur_mp3_mode,cur_play_ptr;
+
+// CAN
+static uint8_t	can_tx_sig,can_rx_sig;
+static uint32_t	canMsgId[] = {0x102,0x106,0x10A,0x10E};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -322,6 +328,48 @@ static uint8_t	mp3_open(void)
 
 	return	0;
 }
+
+static int	set_can1_tx_header(uint32_t sw_idx)
+{
+	canTxHeader.StdId = canMsgId[sw_idx];
+	canTxHeader.RTR = CAN_RTR_DATA;
+	canTxHeader.IDE = CAN_ID_STD;
+	canTxHeader.DLC = 8;
+
+	return	0;
+}
+
+static int	send_can1_data(void)
+{
+	for(uint32_t i=0;i<8;i++) can1Tx0Data[i]++;
+
+	TxMailBox = HAL_CAN_GetTxMailboxesFreeLevel(&hcan1);
+	HAL_CAN_AddTxMessage(&hcan1,&canTxHeader,can1Tx0Data,&TxMailBox);
+
+	return	0;
+}
+
+static int	set_can_filter1(void)
+{
+	canFilter1.FilterMaskIdHigh = 0x7F3<<5;
+	canFilter1.FilterIdHigh = 0x106<<5;
+
+	canFilter1.FilterMaskIdLow = 0x7F3<<5;
+	canFilter1.FilterIdLow = 0x106<<5;
+
+	canFilter1.FilterMode = CAN_FILTERMODE_IDMASK;
+	canFilter1.FilterScale = CAN_FILTERSCALE_16BIT;
+
+	canFilter1.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+	canFilter1.FilterBank = 0;
+
+	canFilter1.FilterActivation = ENABLE;
+
+	HAL_CAN_ConfigFilter(&hcan1,&canFilter1);
+	HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);
+
+	return	0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -362,6 +410,7 @@ int main(void)
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
   MX_LWIP_Init();
+  MX_CAN1_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -378,6 +427,7 @@ int main(void)
   /* tcp echo server Init */
   udp_echoserver_init();
 
+  set_can_filter1();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -392,6 +442,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart3, &uart3_rx_data, sizeof(uart3_rx_data));
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_val,4);
   HAL_TIM_Base_Start_IT(&htim7);
+  HAL_CAN_Start(&hcan1);
 
   if( mount_SD_card() == TRUE )
   {
@@ -410,6 +461,19 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  if( can_rx_sig == TRUE )
+	  {
+		  clear_sig(can_rx_sig);
+		  CLCD_Printf("Rx ID: 0x%03X\nRx Data: 0x%2X",
+				  	  	  canRxHeader.StdId,can1Rx0Data[0]);
+	  }
+
+	  if( can_tx_sig == TRUE )
+	  {
+		  clear_sig(can_tx_sig);
+		  send_can1_data();
+	  }
+
 	  if( new_mp3_sig == TRUE )
 	  {
 		  printf("%d %s\n",mp3_ptr,MP3_file_name[mp3_ptr]);
@@ -527,13 +591,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		case GPIO_PIN_3:
 			mp3_ptr=(mp3_ptr+(NUM_OF_TRACKS-1))%NUM_OF_TRACKS;
 			set_sig(new_mp3_sig);
+			set_can1_tx_header(0);
+			set_sig(can_tx_sig);
 			break;
 		case GPIO_PIN_15:
 			mp3_ptr=(mp3_ptr+1)%NUM_OF_TRACKS;
 			set_sig(new_mp3_sig);
+			set_can1_tx_header(1);
+			set_sig(can_tx_sig);
 			break;
-		case GPIO_PIN_4:cur_mp3_mode=PLAY;break;
-		case GPIO_PIN_10:cur_mp3_mode=PAUSE;break;
+		case GPIO_PIN_4:
+			cur_mp3_mode=PLAY;
+			set_can1_tx_header(2);
+			set_sig(can_tx_sig);
+			break;
+		case GPIO_PIN_10:
+			cur_mp3_mode=PAUSE;
+			set_can1_tx_header(3);
+			set_sig(can_tx_sig);
+			break;
 		default:/*do nothing*/;break;
 	}
 }
@@ -568,6 +644,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			change_LED_state(RIGHT, right_led_state);
 			right_led_state = (right_led_state==LED_ON)?LED_OFF:LED_ON;
 		}
+	}
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	if( hcan->Instance == CAN1 )
+	{
+		HAL_CAN_GetRxMessage(&hcan1,CAN_RX_FIFO0,&canRxHeader,can1Rx0Data);
+		set_sig(can_rx_sig);
 	}
 }
 /* USER CODE END 4 */
